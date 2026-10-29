@@ -22,6 +22,7 @@ dependencies = [
     #   uv sync --extra cu130  -> explicit +cu130 build (download.pytorch.org)
     #   uv sync --extra cpu    -> CPU-only build
     "torch>=2.10.0",
+    "wget>=3.2",
 ]
 
 [project.optional-dependencies]
@@ -31,13 +32,6 @@ cpu = [
 cu130 = [
     "torch>=2.10.0",
 ]
-
-[project.scripts]
-multitask-ast-low-resource = "multitask_ast_low_resource:main"
-
-[build-system]
-requires = ["uv_build>=0.13.1,<0.14.0"]
-build-backend = "uv_build"
 
 [tool.uv]
 environments = ["sys_platform == 'linux'"]

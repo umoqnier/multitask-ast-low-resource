@@ -29,7 +29,7 @@ import click
 # language IDs used in Canary prompts and sub-tokenizer names.
 # shortcut: this is the prompting registry inline; it lives in models/prompting.py
 # in the full plan layout.
-LANG_CODES = {"azz": "nah", "map": "map", "que": "que", "an4": "en"}
+LANG_CODES = {"azz": "azz", "map": "map", "que": "que", "an4": "en"}
 AST_TARGET_LANG = "es"
 SPECIAL_TASK_TOKENS = ["transcribe", "translate"]
 
