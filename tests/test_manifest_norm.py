@@ -28,6 +28,8 @@ assert langs_for_task("multitask", "nah") == ["nah", "es"]
 
 with tempfile.TemporaryDirectory() as tmp:
     src = Path(tmp) / "manifests"
+    audio = Path(tmp) / "a.wav"
+    audio.write_bytes(b"RIFF")
     # Mimic what build_datasets.py writes for Nahuatl (placeholder langs, task set).
     rows = {
         "train_manifest.json": [
@@ -37,6 +39,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 "task": "asr",
                 "source_lang": "es",
                 "target_lang": "es",
+                "audio_filepath": str(audio),
             },
             {
                 "text": "hola",
@@ -44,6 +47,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 "task": "ast",
                 "source_lang": "en",
                 "target_lang": "es",
+                "audio_filepath": str(audio),
             },
         ]
     }
@@ -71,8 +75,8 @@ with tempfile.TemporaryDirectory() as tmp:
         [e for e in entries if e["task"] == "asr"][0],
         [e for e in entries if e["task"] == "ast"][0],
     )
-    assert (asr["source_lang"], asr["target_lang"]) == ("nah", "nah")
-    assert (ast["source_lang"], ast["target_lang"]) == ("nah", "es")
+    assert (asr["source_lang"], asr["target_lang"]) == ("azz", "azz")
+    assert (ast["source_lang"], ast["target_lang"]) == ("azz", "es")
     assert asr["pnc"] == "no"
 
     # Originals are never modified.
@@ -80,5 +84,21 @@ with tempfile.TemporaryDirectory() as tmp:
         (src / "azz" / "multitask" / "train_manifest.json").read_text().splitlines()[0]
     )
     assert first_orig["source_lang"] == "es"
+
+    # Missing audio must fail fast, not starve training.
+    bad = src / "azz" / "asr"
+    bad.mkdir(parents=True, exist_ok=True)
+    (bad / "train_manifest.json").write_text(
+        json.dumps(
+            {"audio_filepath": "/nonexistent.wav", "duration": 1.0, "task": "asr"}
+        )
+    )
+    for name in ("val_manifest.json", "test_manifest.json"):
+        (bad / name).write_text("")
+    try:
+        normalize_manifests(src, "azz", "asr", Path(tmp) / "norm_bad")
+        raise AssertionError("expected SystemExit for missing audio")
+    except SystemExit:
+        pass
 
 print("OK")

@@ -89,11 +89,25 @@ def normalize_manifests(
                 if not line.strip():
                     continue
                 entry = normalize_entry(json.loads(line), lang, task)
+                # Preflight: manifests hold absolute paths from the machine that
+                # built them; lhotse drops unloadable cuts silently (fault-tolerant
+                # loading), which starves training. Fail loudly instead.
+                if n < 2:
+                    audio = entry.get("audio_filepath")
+                    if not audio or not os.path.exists(audio):
+                        sys.exit(
+                            f"Manifest {src} references missing audio: {audio!r}. "
+                            "Copy the audio tree to this host or rebuild manifests here."
+                        )
                 fout.write(json.dumps(entry, ensure_ascii=False) + "\n")
                 n += 1
                 dur += float(entry.get("duration", 0.0))
         counts[split] = n
         durations[split] = dur
+        if dur == 0:
+            sys.exit(
+                f"Manifest {src} has zero total duration — lhotse needs 'duration' per entry."
+            )
     return out_base, counts, durations
 
 
@@ -208,8 +222,12 @@ def main(
 
     from data.datamodule import CanaryMultilingualDataModule
 
-    logger.info("Setting up torch float32 matmul precision to medium")
+    logger.info(f"Setting up torch float32 matmul precision to medium")
     torch.set_float32_matmul_precision("medium")
+    logger.info(
+        f"CUDA available={torch.cuda.is_available()}, visible_devices={torch.cuda.device_count()}, "
+        f"torch={torch.__version__}+{torch.version.cuda}"
+    )
 
     lang = LANG_CODES[language_mode]
     langs = langs_for_task(task, lang)
