@@ -1,0 +1,170 @@
+# Nahuatl ASR-only prototype config (~5h total audio: train 4h / val 0.5h / test 0.5h
+# under SPLITS_RATIOS 0.8/0.1/0.1). Use with:
+#   python scripts/train_nemo_multitask.py --task asr --config configs/nemo/asr_nah.yaml
+#
+# Identical architecture/tokenizer/prompt to configs/nemo/multitask_nah_es.yaml on
+# purpose: --task asr already registers only the `nah` sub-tokenizer, so the ONLY
+# substantive difference is the metrics block. Keeping both files full copies makes
+# each experiment reproducible from one file (keep them in sync otherwise).
+
+model:
+  sample_rate: 16000
+  log_prediction: true
+  use_loss_mask_for_prompt: false
+
+  prompt_format: canary
+  prompt_defaults: null
+
+  # ASR-only: WER on every validation sample (no BLEU).
+  # constraint omitted -> applies to all cuts (metrics/multitask.py _no_constraint).
+  # Do NOT set this to null: the model default is unconstrained WER *and* BLEU
+  # (aed_multitask_models.py:237-247), and BLEU over Nahuatl transcripts is noise.
+  multitask_metrics_cfg:
+    log_predictions: true
+    metrics:
+      wer:
+        _target_: nemo.collections.asr.metrics.WER
+
+  model_defaults:
+    asr_enc_hidden: 256
+    lm_enc_hidden: 256
+    lm_dec_hidden: 256
+
+  train_ds: null
+  validation_ds: null
+  test_ds: null
+
+  # Filled at runtime by scripts/train_nemo_multitask.py:
+  # langs.spl_tokens + one entry per registered language ({dir, type: bpe}).
+  tokenizer:
+    dir: null
+    type: agg
+    langs: {}
+    custom_tokenizer:
+      _target_: nemo.collections.common.tokenizers.canary_tokenizer.CanaryTokenizer
+      tokenizers: null
+
+  preprocessor:
+    _target_: nemo.collections.asr.modules.AudioToMelSpectrogramPreprocessor
+    sample_rate: ${model.sample_rate}
+    normalize: "per_feature"
+    window_size: 0.025
+    window_stride: 0.01
+    window: "hann"
+    features: 128
+    n_fft: 512
+    log: true
+    frame_splicing: 1
+    dither: 0.00001
+    pad_to: 0
+    pad_value: 0.0
+
+  spec_augment:
+    _target_: nemo.collections.asr.modules.SpectrogramAugmentation
+    freq_masks: 2
+    time_masks: 5
+    freq_width: 27
+    time_width: 0.05
+
+  encoder:
+    _target_: nemo.collections.asr.modules.ConformerEncoder
+    feat_in: ${model.preprocessor.features}
+    feat_out: -1
+    n_layers: 12
+    d_model: ${model.model_defaults.asr_enc_hidden}
+
+    subsampling: dw_striding
+    subsampling_factor: 8
+    subsampling_conv_channels: 256
+    causal_downsampling: false
+    reduction: null
+    reduction_position: null
+    reduction_factor: 1
+
+    ff_expansion_factor: 4
+
+    self_attention_model: rel_pos
+    n_heads: 4
+    att_context_size: [-1, -1]
+    xscaling: false
+    untie_biases: true
+    pos_emb_max_len: 5000
+
+    conv_kernel_size: 9
+    conv_norm_type: batch_norm
+    conv_context_size: null
+
+    dropout: 0.1
+    dropout_pre_encoder: 0.1
+    dropout_emb: 0.0
+    dropout_att: 0.1
+
+  transf_encoder:
+    _target_: nemo.collections.asr.modules.transformer.transformer_encoders.TransformerEncoder
+    num_layers: 0
+    hidden_size: ${model.model_defaults.lm_enc_hidden}
+    inner_size: ${multiply:${model.model_defaults.lm_enc_hidden}, 4}
+    num_attention_heads: 4
+    ffn_dropout: 0.1
+    attn_score_dropout: 0.1
+    attn_layer_dropout: 0.1
+    mask_future: False
+    pre_ln: True
+    pre_ln_final_layer_norm: True
+
+  transf_decoder:
+    _target_: nemo.collections.asr.modules.transformer.get_nemo_transformer
+    model_name: null
+    pretrained: false
+    encoder: null
+    pre_ln_final_layer_norm: true
+
+    config_dict:
+      max_sequence_length: 512
+      num_token_types: 0
+      embedding_dropout: 0.1
+      learn_positional_encodings: false
+      hidden_size: ${model.model_defaults.lm_dec_hidden}
+      inner_size: ${multiply:${model.model_defaults.lm_dec_hidden}, 4}
+      num_layers: 4
+      num_attention_heads: 4
+      ffn_dropout: 0.1
+      attn_score_dropout: 0.1
+      attn_layer_dropout: 0.1
+      hidden_act: relu
+      pre_ln: true
+      vocab_size: None  # Set by the model at runtime
+
+  head:
+    _target_: nemo.collections.asr.parts.submodules.token_classifier.TokenClassifier
+    num_layers: 1
+    activation: relu
+    log_softmax: true
+    hidden_size: ${model.transf_decoder.config_dict.hidden_size}
+    num_classes: None  # Set by the model at runtime
+    dropout: 0.0
+    use_transformer_init: true
+
+  decoding:
+    strategy: beam
+    return_best_hypothesis: true
+    beam:
+      beam_size: 1
+      len_pen: 0.0
+      max_generation_delta: 50
+
+  loss:
+    _target_: nemo.collections.common.losses.smoothed_cross_entropy.SmoothedCrossEntropyLoss
+    label_smoothing: 0.0
+    pad_id: null
+
+  optim:
+    name: adamw
+    lr: 3e-4
+    betas: [0.9, 0.98]
+    weight_decay: 1e-3
+    sched:
+      name: InverseSquareRootAnnealing
+      warmup_steps: 100  # Overridden from --max-epochs in the training script
+      warmup_ratio: null
+      min_lr: 1e-6

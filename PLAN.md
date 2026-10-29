@@ -181,15 +181,17 @@ environment:
 
 | **Order** | **Resource** | **Repository path** | **What to learn** |
 | --- | --- | --- | --- |
-| 1 | Conceptual tutorial | tutorials/asr/Canary_Multitask_Speech_Model.ipynb | Prompting, ASR/AST task control, inference |
-| 2 | Training entry point | examples/asr/speech_multitask/speech_to_text_aed.py | Hydra, Trainer, exp_manager, fit/test lifecycle |
-| 3 | Reference config | examples/asr/conf/speech_multitask/fast-conformer_aed.yaml | FastConformer AED architecture and optimization |
-| 4 | Core model | nemo/collections/asr/models/aed_multitask_models.py | EncDecMultiTaskModel, steps, decoding, metrics |
-| 5 | Prompted data | nemo/collections/asr/data/audio_to_text_lhotse_prompted.py | Expected minibatch contract |
-| 6 | Prompt formatters | nemo/collections/common/prompts/ | Task/language prompt construction |
-| 7 | Tokenizers | nemo/collections/common/tokenizers/ | Canary and aggregate tokenizers |
-| 8 | Decoding | nemo/collections/asr/parts/submodules/multitask_decoding.py | Prompted AED decoding |
-| 9 | Evaluation | examples/asr/speech_to_text_eval.py; examples/asr/transcribe_speech.py | Standalone evaluation and inference |
+| 1 | Conceptual tutorial | nemo_speech/tutorials/asr/Canary_Multitask_Speech_Model.ipynb | Prompting, ASR/AST task control, inference |
+| 2 | Training entry point | nemo_speech/examples/asr/speech_multitask/speech_to_text_aed.py | Hydra, Trainer, exp_manager, fit/test lifecycle |
+| 3 | Reference config | nemo_speech/examples/asr/conf/speech_multitask/fast-conformer_aed.yaml | FastConformer AED architecture and optimization |
+| 4 | Core model | nemo_speech/nemo/collections/asr/models/aed_multitask_models.py | EncDecMultiTaskModel, steps, decoding, metrics |
+| 5 | Prompted data | nemo_speech/nemo/collections/asr/data/audio_to_text_lhotse_prompted.py | Expected minibatch contract |
+| 6 | Prompt formatters | nemo_speech/nemo/collections/common/prompts/ | Task/language prompt construction |
+| 7 | Tokenizers | nemo_speech/nemo/collections/common/tokenizers/ | Canary and aggregate tokenizers |
+| 8 | Decoding | nemo_speech/nemo/collections/asr/parts/submodules/multitask_decoding.py | Prompted AED decoding |
+| 9 | Evaluation | nemo_speech/examples/asr/speech_to_text_eval.py; examples/asr/transcribe_speech.py | Standalone evaluation and inference |
+
+For agents: `nemo_speech/.claude/skills`
 
 Study the following concepts:
 
