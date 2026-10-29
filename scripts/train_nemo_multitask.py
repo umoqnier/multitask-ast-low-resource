@@ -267,12 +267,24 @@ def main(
         }
     )
     mdl.optim.lr = lr
-    # warmup over 5% of the run; steps/epoch estimated from the duration-budget
-    # batching (shortcut: approximate, good enough for warmup).
-    est_steps_per_epoch = max(1, math.ceil(durations["train"] / batch_duration))
+    accum_grad_batches = 4
+    # NeMo injects t_max_epochs when trainer.max_steps<0 (modelPT.py:677), but that
+    # path needs the model's own train dataloader -- with an external
+    # LightningDataModule it is None and the scheduler is silently skipped
+    # (lr_scheduler.py:916-923). Setting sched.max_steps takes the explicit branch
+    # (lr_scheduler.py:906) instead. Scheduler steps are OPTIMIZER steps: divide by
+    # ranks and grad accumulation.
+    # shortcut: estimate from the duration budget; verify vs real step count in TB.
+    est_steps_per_epoch = max(
+        1,
+        math.ceil(
+            durations["train"] / (batch_duration * max(1, devices) * accum_grad_batches)
+        ),
+    )
     mdl.optim.sched.warmup_steps = int(0.05 * max_epochs * est_steps_per_epoch)
+    mdl.optim.sched.max_steps = max_epochs * est_steps_per_epoch
     logger.info(
-        f"Est. {est_steps_per_epoch} steps/epoch -> {max_epochs * est_steps_per_epoch} "
+        f"Est. {est_steps_per_epoch} opt-steps/epoch -> {mdl.optim.sched.max_steps} "
         f"total, warmup={mdl.optim.sched.warmup_steps}"
     )
 
@@ -282,7 +294,7 @@ def main(
     strategy = "ddp" if devices > 1 else "auto"
     logger.info(
         f"Trainer: devices={devices}, strategy={strategy}, "
-        f"precision={'bf16-mixed' if use_gpu else '32-true'}, accumulate_grad_batches=4"
+        f"precision={'bf16-mixed' if use_gpu else '32-true'}, accumulate_grad_batches={accum_grad_batches}"
     )
     trainer = L.Trainer(
         devices=devices,
@@ -291,7 +303,7 @@ def main(
         max_epochs=max_epochs,
         val_check_interval=val_check_interval,
         precision="bf16-mixed" if use_gpu else "32-true",
-        accumulate_grad_batches=4,
+        accumulate_grad_batches=accum_grad_batches,
         gradient_clip_val=1.0,
         logger=TensorBoardLogger(save_dir="logs", name=exp_name),
         callbacks=[
