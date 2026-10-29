@@ -1,6 +1,5 @@
 from typing import Protocol
 
-import numpy as np
 import torch
 from lhotse import CutSet
 from lhotse.cut import Cut
@@ -12,8 +11,6 @@ from nemo.collections.asr.data.audio_to_text_lhotse_prompted import (
 from nemo.collections.common.data.prompt_fn import get_prompt_format_fn
 from nemo.collections.common.prompts import PromptFormatter
 from torch.utils.data import Dataset
-
-from custom_aumentation import augment
 
 
 class TokenizerSpec(Protocol):
@@ -32,11 +29,8 @@ class MyCanaryPromptedAudioToTextLhotseDataset(Dataset):
         self.prompt_format_fn = get_prompt_format_fn(Cut, self.prompt)
 
     def __getitem__(self, cuts: CutSet) -> PromptedAudioToTextMiniBatch:
+        # TODO: Implement augmentations
         audio, audio_lens, cuts = self.load_audio(cuts)
-        # audio_np = audio.numpy()
-        # augmented = [augment(samples=sample, sample_rate=16000) for sample in audio_np]
-        # audio = torch.from_numpy(np.stack(augmented))
-
         answers, prompts, prompts_with_answers = [], [], []
         for cut in cuts:
             fmt = self.prompt_format_fn(cut, self.prompt)
