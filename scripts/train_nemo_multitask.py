@@ -222,7 +222,7 @@ def main(
 
     from data.datamodule import CanaryMultilingualDataModule
 
-    logger.info(f"Setting up torch float32 matmul precision to medium")
+    logger.info("Setting up torch float32 matmul precision to medium")
     torch.set_float32_matmul_precision("medium")
     logger.info(
         f"CUDA available={torch.cuda.is_available()}, visible_devices={torch.cuda.device_count()}, "

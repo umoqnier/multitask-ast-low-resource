@@ -687,7 +687,7 @@ class AN4Processor(LanguageProcessor):
         mapping split names → list of manifest entries, identical in structure to
         the other LanguageProcessor implementations:
 
-            {"train": [...], "validation": [], "test": [...]}
+            {"train": [...], "validation": [...], "test": [...]}
         """
         self.do_ast = task in ("ast", "multitask")
         self._prepare_data()
@@ -752,9 +752,23 @@ class AN4Processor(LanguageProcessor):
         # Return dict in the same shape as other processors:
         # {"train": ..., "validation": ..., "test": ...}
         if task == "asr":
-            return {"train": train_entries, "validation": [], "test": test_entries}
+            shuffled = list(train_entries)
+            random.shuffle(shuffled)
+            n_val = int(len(shuffled) * 0.1)
+            return {
+                "train": shuffled[n_val:],
+                "validation": shuffled[:n_val],
+                "test": test_entries,
+            }
         if task == "ast":
-            return {"train": ast_train, "validation": [], "test": ast_test}
+            shuffled = list(ast_train)
+            random.shuffle(shuffled)
+            n_val = int(len(shuffled) * 0.1)
+            return {
+                "train": shuffled[n_val:],
+                "validation": shuffled[:n_val],
+                "test": ast_test,
+            }
         return {
             "train": combined_train,
             "validation": combined_val,
